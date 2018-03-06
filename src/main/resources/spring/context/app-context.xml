@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:mongo="http://www.springframework.org/schema/data/mongo"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+                        http://www.springframework.org/schema/data/mongo http://www.springframework.org/schema/data/mongo/spring-mongo-1.0.xsd
+                        http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.1.xsd">
+        <!--<context:property-placeholder location="classpath:log4j/log4j.properties"/>--><!--如果需要引入多个，以逗号隔开-->
+        <!--上述方式是该配置的简写，可以引入多个属性配置文件-->
+        <bean class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+            <property name="locations">
+                <list>
+                    <value>classpath:datasource/jpa.properties</value>
+                    <value>classpath:log4j/log4j.properties</value>
+                    <value>classpath:redis/redis.properties</value>
+                    <value>classpath:mongo/mongodb.properties</value>
+                </list>
+            </property>
+        </bean>
+
+        <context:component-scan base-package="com.mtl" use-default-filters="false">
+            <context:include-filter type="annotation" expression="org.springframework.stereotype.Repository" />
+            <context:include-filter type="annotation" expression="org.springframework.stereotype.Service" />
+            <context:include-filter type="annotation" expression="org.springframework.context.annotation.Configuration" />
+            <context:exclude-filter type="annotation" expression="org.springframework.stereotype.Controller" />
+            <context:exclude-filter type="annotation" expression="org.springframework.web.bind.annotation.ControllerAdvice" />
+        </context:component-scan>
+
+        <!--Redis 配置-->
+        <bean id="redisHttpSessionConfiguration"
+              class="org.springframework.session.data.redis.config.annotation.web.http.RedisHttpSessionConfiguration">
+            <property name="maxInactiveIntervalInSeconds" value="600"/>
+        </bean>
+
+        <bean id="jedisPoolConfig" class="redis.clients.jedis.JedisPoolConfig">
+            <property name="maxTotal" value="100" />
+            <property name="maxIdle" value="10" />
+        </bean>
+
+        <bean id="jedisConnectionFactory" class="org.springframework.data.redis.connection.jedis.JedisConnectionFactory" destroy-method="destroy">
+            <property name="hostName" value="${redis.hostname}"/>
+            <property name="port" value="${redis.port}"/>
+            <property name="password" value="${redis.password}"/>
+            <property name="timeout" value="3000"/>
+            <property name="usePool" value="true"/>
+            <property name="poolConfig" ref="jedisPoolConfig"/>
+        </bean>
+
+        <!--MongoDB配置-->
+        <mongo:mongo id="mongo" host="${mongo.host}" port="${mongo.port}">
+            <mongo:options connections-per-host="${mongo.connectionsPerHost}"
+                           threads-allowed-to-block-for-connection-multiplier="${mongo.threadsAllowedToBlockForConnectionMultiplier}"
+                           connect-timeout="${mongo.connectTimeout}" max-wait-time="${mongo.maxWaitTime}"
+                           auto-connect-retry="${mongo.autoConnectRetry}" socket-keep-alive="${mongo.socketKeepAlive}"
+                           socket-timeout="${mongo.socketTimeout}" slave-ok="${mongo.slaveOk}"
+                           write-number="1" write-timeout="0" write-fsync="true"/>
+        </mongo:mongo>
+
+        <!--设置使用的数据库名-->
+        <mongo:db-factory id="mongoDbFactory" dbname="test" mongo-ref="mongo" />
+        <!--MongoDB的模板类-->
+        <bean id="mongoTemplate" class="org.springframework.data.mongodb.core.MongoTemplate">
+            <constructor-arg name="mongoDbFactory" ref="mongoDbFactory"/>
+        </bean>
+</beans>
